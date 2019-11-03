@@ -11,4 +11,7 @@ __So we'll:__
 - add a simple search-reload method to live-reload the config json
     - _this should be made into a nice web UI for editing in browser; i'm too lazy for that ATM though_
 
+_NOTE_: Requires a newer-than-system ruby version
+
+
 _License: BSD 2-Clause_
