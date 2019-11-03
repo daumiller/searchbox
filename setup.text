@@ -1,0 +1,8 @@
+openssl req -x509 -newkey rsa:4096 -keyout search.yahoo.com.key -out search.yahoo.com.crt -days 3650 -nodes -subj '/CN=search.yahoo.com'
+# leave out -subj to be prompted for values
+install search.yahoo.com.crt into KeyChain
+Find cert in KeyChain>Certificates, open, set trust to 'always'
+
+in /etc/hosts >
+    search.yahoo.com  127.0.0.1
+or whatever ip you're using
