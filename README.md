@@ -7,7 +7,7 @@ But:__
 
 __So we'll:__
 - create a simple redirection server in ruby
-- hijack the search.yahoo.com domain, because who needs that anyway?
+- hijack the search.yahoo.com domain locally, because who needs that anyway?
 - add a simple search-reload method to live-reload the config json
     - _this should be made into a nice web UI for editing in browser; i'm too lazy for that ATM though_
 
