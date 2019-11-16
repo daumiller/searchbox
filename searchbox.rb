@@ -4,7 +4,15 @@ require 'json'
 require 'webrick'
 require 'openssl'
 require 'webrick/https'
+require_relative './config.rb'
 
+config = ServerConfig.new
+if(config.error)
+    print "Error loading configuration!\n"
+    print config.error
+    print "\n"
+    exit  false
+end
 
 https_certificate = OpenSSL::X509::Certificate.new File.read('search.yahoo.com.crt')
 https_private_key = OpenSSL::PKey::RSA.new File.read('search.yahoo.com.key')
@@ -17,7 +25,43 @@ server = WEBrick::HTTPServer.new({
     :SSLPrivateKey => https_private_key
 })
 
-search_engines = JSON.parse File.read('engines.json')
+# server.mount '/editor', WEBrick::HTTPServlet::FileHandler, File.expand_path('./editor/dist')
+
+server.mount_proc '/data' do |request, response|
+    data_command = request.query['cmd']
+    case data_command
+        when 'config-read'
+            config.read
+            if(config.error)
+                response.status = 500
+                response.body = 'Error reading configuration.'
+            else
+                response.header['Content-Type'] = 'application/json'
+                response.header['Cache-Control'] = 'no-cache'
+                response.body = JSON.pretty_generate(config.searches)
+            end
+        when 'config-write'
+            begin
+                new_search_engines = JSON.parse(request.body)
+                config.searches = new_search_engines
+                config.write
+                if(config.error)
+                    response.status = 500
+                    response.body = 'Error writing configuration.'
+                else
+                    response.header['Content-Type'] = 'application/json'
+                    response.header['Cache-Control'] = 'no-cache'
+                    response.body = JSON.pretty_generate(config.searches)
+                end
+            rescue
+                response.status = 400
+                response.body = 'Bad JSON Document'
+            end
+        else
+            response.status = 400
+            response.body = 'Bad Request'
+    end
+end
 
 server.mount_proc '/search' do |request, response|
     search_input      = request.query['p'] || ''
@@ -27,21 +71,21 @@ server.mount_proc '/search' do |request, response|
     search_engine     = search_components[0]
     search_engine_q   = search_components[1..-1].join(' ')
 
-    if search_engine == 'search-reload'
-        search_engines = JSON.parse File.read('engines.json')
-        response.body = JSON.pretty_generate(search_engines)
-        next
-    end
+    # if search_engine == 'search-edit'
+    #     response.set_redirect WEBrick::HTTPStatus::TemporaryRedirect, '/editor/index.html'
+    #     next
+    # end
 
     search_url =
-        if search_engines[search_engine]
-            (search_engines[search_engine] % [search_engine_q]) 
+        if config.searches[search_engine]
+            (config.searches[search_engine] % [search_engine_q]) 
         else
-            (search_engines['default'] % [search_input])
+            (config.searches['default'] % [search_input])
         end
 
     redirect_url = URI::encode(search_url)
     response.set_redirect WEBrick::HTTPStatus::TemporaryRedirect, redirect_url
 end
 
+['INT', 'TERM'].each {|signal| trap(signal) {server.shutdown}}
 server.start
